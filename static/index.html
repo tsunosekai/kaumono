@@ -553,52 +553,76 @@ function viewHome(){
     });
   }
 
+  const MODES = {area:"置き場所", genre:"種類", site:"買う店"};
   const modeRow = $(`<h2 style="display:flex;align-items:center;gap:10px">
-    <span>置き場所</span>
+    <span>${MODES[homeMode]}</span>
     <span class="seg" style="margin-left:auto">
-      <button data-m="area" class="${homeMode==="area"?"on":""}" style="${homeMode==="area"?"background:var(--primary);color:#fff":""}">場所</button>
-      <button data-m="genre" class="${homeMode==="genre"?"on":""}" style="${homeMode==="genre"?"background:var(--primary);color:#fff":""}">種類</button>
+      ${Object.entries({area:"場所", genre:"種類", site:"店"}).map(([k,v]) =>
+        `<button data-m="${k}" style="${homeMode===k?"background:var(--primary);color:#fff":""}">${v}</button>`).join("")}
     </span></h2>`);
   modeRow.querySelectorAll("button").forEach(b => b.onclick = () => {
     homeMode = b.dataset.m; localStorage.setItem("stock-mode", homeMode); viewHome();
   });
-  modeRow.querySelector("span").textContent = homeMode === "area" ? "置き場所" : "種類";
   app.appendChild(modeRow);
 
   const grid = $(`<div class="grid"></div>`);
+  // 店別は URL から導くだけで実体を持たない（登録も並べ替えもしない）
   const groups = homeMode === "area"
-    ? S.areas.map(a => [a, S.items.filter(i=>i.area===a.id), "/a/"+a.id])
-    : S.genres.map(g => [g, S.items.filter(i=>i.genre===g.id), "/g/"+g.id]);
-  groups.forEach(([g, items, href]) => {
+    ? S.areas.map(a => [a.name, a.id, S.items.filter(i=>i.area===a.id), "/a/"+a.id])
+    : homeMode === "genre"
+    ? S.genres.map(g => [g.name, g.id, S.items.filter(i=>i.genre===g.id), "/g/"+g.id])
+    : siteGroups().map(([label, rows]) => [label, null, rows, "/s/"+encodeURIComponent(label)]);
+
+  groups.forEach(([name, sid, items, href]) => {
     const n = items.filter(i=>i.status==="want").length;
-    grid.appendChild($(`<a class="card" data-nav href="${href}" data-sid="${g.id}">
-      <span class="grip" title="ドラッグで並べ替え">⠿</span>
-      <div class="n">${esc(g.name)}</div>
+    grid.appendChild($(`<a class="card" data-nav href="${href}" ${sid?`data-sid="${sid}"`:""}>
+      ${sid?`<span class="grip" title="ドラッグで並べ替え">⠿</span>`:""}
+      <div class="n">${esc(name)}</div>
       <div class="c">${items.length}品${n?` ・ <span class="badge">${n}件</span>`:""}</div>
     </a>`));
   });
   app.appendChild(grid);
-  makeSortable(grid, homeMode === "area" ? "areas" : "genres");
+  if(homeMode !== "site") makeSortable(grid, homeMode === "area" ? "areas" : "genres");
 
-  const add = $(`<button class="fab">＋ ${homeMode==="area"?"場所":"種類"}</button>`);
-  add.onclick = () => openGroupSheet(homeMode);
+  const add = $(`<button class="fab">＋ ${homeMode==="area"?"場所":homeMode==="genre"?"種類":"品目"}</button>`);
+  add.onclick = () => homeMode === "site" ? openItemSheet(null) : openGroupSheet(homeMode);
   app.appendChild(add);
 }
 
+/* 店の一覧。URL のホストから導き、品数の多い順。URLの無いものは最後にまとめる */
+function siteGroups(){
+  const m = new Map();
+  S.items.forEach(i => {
+    const key = i.url ? siteLabel(i.url) : "URLなし";
+    if(!m.has(key)) m.set(key, []);
+    m.get(key).push(i);
+  });
+  return [...m.entries()].sort((a, b) =>
+    (a[0] === "URLなし") - (b[0] === "URLなし") || b[1].length - a[1].length);
+}
+
 function viewGroup(kind, id){
-  const g = kind === "area" ? area(id) : genre(id);
+  const g = kind === "site" ? {name:id} : kind === "area" ? area(id) : genre(id);
   if(!g){ app.innerHTML = `<div class="empty">見つかりません。</div>`; return; }
   document.getElementById("title").textContent = g.name;
   document.getElementById("back").style.display = "";
   app.innerHTML = "";
 
-  const items = S.items.filter(i => (kind==="area" ? i.area : i.genre) === id);
+  const items = kind === "site"
+    ? S.items.filter(i => (i.url ? siteLabel(i.url) : "URLなし") === id)
+    : S.items.filter(i => (kind==="area" ? i.area : i.genre) === id);
   if(!items.length) app.appendChild($(`<div class="empty">まだ品目がありません。</div>`));
 
   // 並びは配列の順そのもの（名前順ソートはしない——ドラッグで決めた順を守るため）。
   // 並べ替えは見出しごとの容れ物の中だけで効く（見出しをまたぐ移動は種類の変更なので、
   // 品目を開いて「種類」を変える方に倒す）
-  if(kind === "area"){
+  if(kind === "site"){
+    // 店ページは並べ替えない（店は URL から導くだけで実体を持たない）。
+    // 欲しいものが溜まったら、ここからそのままカゴに入れに行ける
+    const need = items.filter(i => i.status === "want");
+    if(need.length > 1) app.appendChild(groupBar(g.name, need));
+    items.forEach(i => app.appendChild(itemRow(i, ["product", "genre"])));
+  }else if(kind === "area"){
     // 種類の見出しごと掴んで動かせる（見出しの並べ替え = ジャンルの並べ替え。
     // ここで動かした順はトップの「種類」表示にもそのまま出る）
     const sections = $(`<div></div>`);
@@ -624,9 +648,11 @@ function viewGroup(kind, id){
     makeSortable(box, "items");
   }
 
-  const add = $(`<button class="fab">＋ 品目</button>`);
-  add.onclick = () => openItemSheet(null, kind==="genre"?id:null, null, kind==="area"?id:null);
-  app.appendChild(add);
+  if(kind !== "site"){
+    const add = $(`<button class="fab">＋ 品目</button>`);
+    add.onclick = () => openItemSheet(null, kind==="genre"?id:null, null, kind==="area"?id:null);
+    app.appendChild(add);
+  }
 }
 
 function viewTags(){
@@ -841,6 +867,7 @@ function route(){
   closeSheet();
   if(p.startsWith("/t/")) return viewTap(decodeURIComponent(p.slice(3)));
   if(p.startsWith("/a/")) return viewGroup("area", decodeURIComponent(p.slice(3)));
+  if(p.startsWith("/s/")) return viewGroup("site", decodeURIComponent(p.slice(3)));
   if(p.startsWith("/g/")) return viewGroup("genre", decodeURIComponent(p.slice(3)));
   if(p === "/tags") return viewTags();
   return viewHome();

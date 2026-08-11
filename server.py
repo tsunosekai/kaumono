@@ -518,6 +518,7 @@ def index(**_path_params):
 
 app.add_url_rule("/", "index", index)
 app.add_url_rule("/a/<path:aid>", "index_area", index)
+app.add_url_rule("/s/<path:site>", "index_site", index)
 app.add_url_rule("/g/<path:gid>", "index_genre", index)
 app.add_url_rule("/t/<path:tag>", "index_tag", index)
 app.add_url_rule("/tags", "index_tags", index)
