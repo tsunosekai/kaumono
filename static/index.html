@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>買うものリスト</title>
+<style>
+/* 配色・角丸・書体・格子背景は GraphWrangler (apps/ui/src/index.css) のトークンに揃える。
+   既定はライト、.dark で切り替え（本人指定: デフォはライト）。 */
+:root{
+  --radius:0.625rem;
+  --background:#f7f8fa;
+  --foreground:#171b21;
+  --card:#ffffff;
+  --popover:#ffffff;
+  --primary:#0066dd;
+  --primary-foreground:#ffffff;
+  --secondary:#eef0f3;
+  --muted:#eef0f3;
+  --muted-foreground:#5b6472;
+  --accent:#e7eaef;
+  --destructive:#d0342c;
+  --border:rgba(15,23,42,.12);
+  --ok:#2f7a3d;
+  --attention:#f28c1d;
+  --done:#9aa3ad;
+  --text-lo:#8790a0;
+  --border-hover:rgba(15,23,42,.22);
+  --border-strong:rgba(15,23,42,.4);
+  --font-sans:"Inter Variable",-apple-system,BlinkMacSystemFont,"Segoe UI",
+    "Hiragino Kaku Gothic ProN","Yu Gothic UI",system-ui,sans-serif;
+}
+.dark{
+  --background:#0b0d10;
+  --foreground:#e3eaf2;
+  --card:#10141a;
+  --popover:#14171c;
+  --primary:#2e8fff;
+  --secondary:rgba(255,255,255,.04);
+  --muted:#0e1116;
+  --muted-foreground:#8fa0b3;
+  --accent:rgba(255,255,255,.07);
+  --destructive:#ff5d5d;
+  --border:rgba(255,255,255,.14);
+  --ok:#93c98b;
+  --attention:#ff9f43;
+  --done:#46525f;
+  --text-lo:#556372;
+  --border-hover:rgba(255,255,255,.28);
+  --border-strong:rgba(255,255,255,.45);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+*{scrollbar-width:thin; scrollbar-color:color-mix(in srgb, var(--text-lo) 55%, transparent) transparent;}
+html,body{margin:0;}
+body{
+  background:var(--background); color:var(--foreground);
+  font-family:var(--font-sans); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; padding:0 0 90px;
+  transition:background-color .15s ease,color .15s ease;
+  background-image:
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='36'%20height='36'%3E%3Cpath%20d='M18.5%200V36M0%2018.5H36'%20stroke='rgba(15,23,42,0.05)'%20stroke-width='1'%20stroke-dasharray='2%204'/%3E%3Cpath%20d='M18.5%2014.5V22.5M14.5%2018.5H22.5'%20stroke='rgba(15,23,42,0.14)'%20stroke-width='1'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Cpath%20d='M90.5%200V180M0%2090.5H180'%20stroke='rgba(15,23,42,0.06)'%20stroke-width='1'%20stroke-dasharray='2%204'/%3E%3Cpath%20d='M90.5%2082.5V98.5M82.5%2090.5H98.5'%20stroke='rgba(15,23,42,0.2)'%20stroke-width='1'/%3E%3C/svg%3E");
+  background-size:36px 36px,180px 180px;
+  background-attachment:fixed;
+}
+body.dark{
+  background-image:
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='36'%20height='36'%3E%3Cpath%20d='M18.5%200V36M0%2018.5H36'%20stroke='rgba(255,255,255,0.04)'%20stroke-width='1'%20stroke-dasharray='2%204'/%3E%3Cpath%20d='M18.5%2014.5V22.5M14.5%2018.5H22.5'%20stroke='rgba(255,255,255,0.11)'%20stroke-width='1'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Cpath%20d='M90.5%200V180M0%2090.5H180'%20stroke='rgba(255,255,255,0.05)'%20stroke-width='1'%20stroke-dasharray='2%204'/%3E%3Cpath%20d='M90.5%2082.5V98.5M82.5%2090.5H98.5'%20stroke='rgba(255,255,255,0.17)'%20stroke-width='1'/%3E%3C/svg%3E");
+  background-size:36px 36px,180px 180px;
+}
+a{color:var(--primary); text-decoration:none;}
+
+header{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--background) 88%, transparent);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+  padding:10px 14px; display:flex; align-items:center; gap:8px;
+}
+header h1{font-size:15px; margin:0; flex:1; font-weight:600;}
+.back{color:var(--muted-foreground); font-size:20px; line-height:1; padding:2px 6px;}
+.hbtn{
+  background:transparent; border:1px solid transparent; color:var(--muted-foreground);
+  border-radius:calc(var(--radius) - 2px); padding:5px 9px; font-size:12px; cursor:pointer;
+}
+.hbtn:hover{background:var(--accent); color:var(--foreground);}
+main{padding:14px; max-width:840px; margin:0 auto;}
+.muted{color:var(--muted-foreground);}
+.small{font-size:12px;}
+h2{font-size:12px; color:var(--muted-foreground); font-weight:600; margin:22px 0 8px; letter-spacing:.04em;}
+h2:first-child{margin-top:0;}
+
+button{
+  font:inherit; color:var(--foreground); background:var(--card);
+  border:1px solid var(--border); border-radius:calc(var(--radius) - 2px);
+  padding:7px 12px; cursor:pointer;
+}
+button:hover{border-color:var(--border-hover);}
+button.primary{background:var(--primary); border-color:var(--primary); color:var(--primary-foreground);}
+button.danger{background:transparent; border-color:var(--destructive); color:var(--destructive);}
+button.ghost{background:transparent;}
+input,select{
+  font:inherit; color:var(--foreground); background:var(--card);
+  border:1px solid var(--border); border-radius:calc(var(--radius) - 2px);
+  padding:9px 10px; width:100%;
+}
+input:focus,select:focus{outline:none; border-color:var(--primary);}
+label{display:block; font-size:12px; color:var(--muted-foreground); margin:12px 0 4px;}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:10px;}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 13px; display:block;
+}
+a.card:hover{border-color:var(--border-hover);}
+.card .n{font-size:15px; color:var(--foreground);}
+.card .c{font-size:12px; color:var(--text-lo); margin-top:4px;}
+.card .badge{color:var(--destructive); font-weight:600;}
+
+.row{
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 12px; margin-bottom:8px; display:flex; align-items:center; gap:10px;
+}
+.row .info{flex:1; min-width:0; cursor:pointer;}
+.row .name{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.row .sub{font-size:12px; color:var(--text-lo); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.row.s-want{border-color:color-mix(in srgb, var(--attention) 60%, transparent);}
+
+/* 状態は2値（本人指示: 少ないは認知負荷が上がる）。押した側だけ塗る */
+.seg{display:flex; border:1px solid var(--border); border-radius:calc(var(--radius) - 2px); overflow:hidden; flex:0 0 auto;}
+.seg button{border:0; border-radius:0; padding:6px 11px; font-size:12px; background:transparent; color:var(--text-lo);}
+.seg button+button{border-left:1px solid var(--border);}
+.seg button.on[data-s="ok"]{background:var(--ok); color:#fff;}
+.seg button.on[data-s="want"]{background:var(--attention); color:#241505;}
+
+/* 「開く」系は色を持たない同じ見た目に揃える（.btnlink はリンク、.btnlike はボタン）。
+   「買った」系は primary で揃える——押すと状態が変わるのはこちらだけなので */
+.btnlink, .btnlike{
+  flex:0 0 auto; font:inherit; color:var(--foreground); background:var(--card);
+  border:1px solid var(--border); border-radius:calc(var(--radius) - 2px);
+  padding:7px 12px; white-space:nowrap;
+}
+.btnlink:hover, .btnlike:hover{border-color:var(--border-hover);}
+
+.tabs{display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:10px;}
+.tab{
+  flex:0 0 auto; font-size:13px; padding:6px 12px; border-radius:999px;
+  border:1px solid var(--border); background:var(--card); color:var(--muted-foreground); cursor:pointer;
+}
+.tab.on{background:var(--primary); border-color:var(--primary); color:var(--primary-foreground);}
+.tab .n{opacity:.7; margin-left:5px; font-size:11px;}
+
+.tagpill{
+  font-size:11px; color:var(--text-lo); border:1px solid var(--border);
+  border-radius:5px; padding:1px 5px;
+  font-family:ui-monospace,"SF Mono",Consolas,monospace;
+}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+.chip{font-size:12px; padding:6px 11px; border:1px solid var(--border); border-radius:999px;
+  color:var(--muted-foreground); cursor:pointer; background:var(--card); user-select:none;}
+.chip.on{background:var(--primary); border-color:var(--primary); color:var(--primary-foreground);}
+
+.sheet{position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center; z-index:20;}
+.sheet .inner{
+  background:var(--popover); border:1px solid var(--border);
+  border-radius:var(--radius) var(--radius) 0 0;
+  width:100%; max-width:840px; max-height:88vh; overflow:auto; padding:16px 16px 26px;
+}
+.sheet .actions{display:flex; gap:8px; margin-top:18px;}
+.sheet .actions button{flex:1;}
+
+.tapresult{text-align:center; padding:34px 10px 10px;}
+.tapresult .icon{font-size:50px; line-height:1;}
+.tapresult .what{font-size:24px; font-weight:600; margin:14px 0 4px;}
+.tapresult .msg{color:var(--muted-foreground); margin-bottom:24px;}
+
+.fab{
+  position:fixed; right:16px; bottom:22px; z-index:9;
+  border-radius:999px; padding:12px 18px;
+  background:var(--primary); border-color:var(--primary); color:var(--primary-foreground);
+  box-shadow:0 6px 18px rgba(15,23,42,.18);
+}
+.empty{color:var(--text-lo); padding:16px 2px;}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="/" id="back" style="display:none">‹</a>
+  <h1 id="title">買うものリスト</h1>
+  <button class="hbtn" id="theme" title="表示テーマ">◐</button>
+  <a class="hbtn" href="/tags" data-nav>タグ</a>
+</header>
+<main id="app"></main>
+<div id="sheet"></div>
+
+<script>
+const CH = {super:"スーパー", conbini:"コンビニ", drug:"ドラッグストア", net:"ネット通販", other:"その他"};
+const ST = {ok:"ある", want:"欲しい"};
+let S = {areas:[], genres:[], items:[]};
+let homeTab = localStorage.getItem("stock-tab") || "all";   // 買い方の絞り込み
+let homeMode = localStorage.getItem("stock-mode") || "area"; // 場所 / 種類
+
+function applyTheme(t){
+  document.body.classList.toggle("dark", t === "dark");
+  document.documentElement.classList.toggle("dark", t === "dark");
+}
+let theme = localStorage.getItem("stock-theme") || "light";
+applyTheme(theme);
+document.getElementById("theme").onclick = () => {
+  theme = theme === "dark" ? "light" : "dark";
+  localStorage.setItem("stock-theme", theme);
+  applyTheme(theme);
+};
+
+const $ = (h) => { const d=document.createElement("div"); d.innerHTML=h.trim(); return d.firstElementChild; };
+const esc = (s) => (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const app = document.getElementById("app");
+const sheetHost = document.getElementById("sheet");
+
+async function api(path, method, body){
+  const r = await fetch("/api"+path, {
+    method: method || "GET",
+    headers: body ? {"content-type":"application/json"} : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error || r.status);
+  return r.json();
+}
+async function load(){ S = await api("/state"); }
+const genre = (id) => S.genres.find(g=>g.id===id);
+const area  = (id) => S.areas.find(a=>a.id===id);
+const wanted = () => S.items.filter(i => i.status === "want");
+const inChannel = (i, ch) => ch === "all" ? true
+  : ch === "other" ? (!i.channels || !i.channels.length || i.channels.includes("other"))
+  : (i.channels||[]).includes(ch);
+function nav(path){ history.pushState({}, "", path); route(); }
+
+document.addEventListener("click", e => {
+  const a = e.target.closest("a[data-nav]");
+  if(a){ e.preventDefault(); nav(a.getAttribute("href")); }
+});
+window.addEventListener("popstate", route);
+
+/* ---------------------------------------------------------------- 並べ替え
+
+   握り(.grip)を掴んで動かす。マウスもタッチも Pointer Events で同じ経路を通る。
+   掴んだ要素は fixed で持ち上げ、pointer-events:none にして elementFromPoint が
+   下の行を拾えるようにし、隙間（.ph）を挿し替えて並びを決める。
+   確定時に /api/reorder へ「今この容れ物に見えている id の並び」を投げる。       */
+
+function makeSortable(container, kind){
+  const isGrid = container.classList.contains("grid");
+  // 直下の子だけを対象にする。入れ子（場所ページ = 種類のかたまりの中に品目の行）が
+  // あるので、querySelectorAll で拾うと内側の握りにまで外側の並べ替えが付いてしまう
+  const kids = () => [...container.children].filter(x => x.dataset && x.dataset.sid);
+
+  kids().forEach(el => {
+    const grip = el.querySelector(".grip");
+    if(!grip) return;
+    grip.addEventListener("pointerdown", down);
+
+    function down(e){
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const offX = e.clientX - rect.left, offY = e.clientY - rect.top;
+      const keep = el.getAttribute("style") || "";
+
+      const ph = document.createElement("div");
+      ph.className = "ph";
+      ph.style.height = rect.height + "px";
+      if(isGrid) ph.style.width = rect.width + "px";
+      container.insertBefore(ph, el);
+
+      el.classList.add("dragging");
+      el.style.width = rect.width + "px";
+      el.style.height = rect.height + "px";
+      el.style.left = rect.left + "px";
+      el.style.top = rect.top + "px";
+      el.style.margin = "0";
+
+      grip.setPointerCapture(e.pointerId);
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", up);
+      grip.addEventListener("pointercancel", up);
+
+      function move(ev){
+        el.style.left = (ev.clientX - offX) + "px";
+        el.style.top = (ev.clientY - offY) + "px";
+
+        // 画面の上下端に寄ったら送る（長い一覧でも端まで運べるように）
+        const edge = 70;
+        if(ev.clientY < edge) window.scrollBy(0, -12);
+        else if(ev.clientY > innerHeight - edge) window.scrollBy(0, 12);
+
+        const under = document.elementFromPoint(ev.clientX, ev.clientY);
+        // 入れ子の内側を掴んだときは、その先祖でこの容れ物の直下にいるものへ読み替える
+        let over = under && under.closest("[data-sid]");
+        while(over && over.parentElement !== container) over = over.parentElement?.closest("[data-sid]");
+        if(over && over !== el){
+          const r = over.getBoundingClientRect();
+          const after = isGrid
+            ? (ev.clientX > r.left + r.width / 2)
+            : (ev.clientY > r.top + r.height / 2);
+          container.insertBefore(ph, after ? over.nextSibling : over);
+        }
+      }
+
+      async function up(){
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", up);
+        grip.removeEventListener("pointercancel", up);
+        el.classList.remove("dragging");
+        el.setAttribute("style", keep);
+        container.insertBefore(el, ph);
+        ph.remove();
+        const ids = kids().map(x => x.dataset.sid);
+        try{ await api("/reorder", "POST", {kind, ids}); }
+        catch(err){ alert("並べ替えを保存できません: " + err.message); }
+        await load();
+      }
+    }
+  });
+}
+
+/* ---------------------------------------------------------------- 部品 */
+
+function statusSeg(item){
+  const el = $(`<div class="seg">${["ok","want"].map(s =>
+    `<button data-s="${s}" class="${item.status===s?"on":""}">${ST[s]}</button>`).join("")}</div>`);
+  el.querySelectorAll("button").forEach(b => b.onclick = async ev => {
+    ev.stopPropagation();
+    await api("/items/"+item.id, "POST", {status:b.dataset.s});
+    await load(); route();
+  });
+  return el;
+}
+
+/* 購入URLから店の名前を出す。知らないホストはそのまま見出しに使う（www. だけ落とす） */
+const SITES = [
+  // 短縮リンクも Amazon に寄せる（貼った直後～毎晩の正規化までの間はこの形）
+  [/(^|\.)amazon\.(co\.jp|com)$|^amzn\.|^a\.co$/, "Amazon"],
+  [/(^|\.)rakuten\.co\.jp$/, "楽天市場"],
+  [/(^|\.)(shopping\.)?yahoo\.co\.jp$|paypaymall/, "Yahoo!ショッピング"],
+  [/(^|\.)askul\.co\.jp$|lohaco/, "アスクル / LOHACO"],
+  [/(^|\.)monotaro\.com$/, "モノタロウ"],
+  [/(^|\.)yodobashi\.com$/, "ヨドバシ"],
+  [/(^|\.)kaunet\.com$/, "カウネット"],
+];
+
+function siteLabel(url){
+  let host;
+  try{ host = new URL(url).hostname.toLowerCase().replace(/^www\./, ""); }
+  catch(e){ return "その他"; }
+  const hit = SITES.find(([re]) => re.test(host));
+  return hit ? hit[1] : host;
+}
+
+/* 束（＝通販サイト／買い方）ごとの操作。注文はサイト単位で終わるので、
+   開くのも買った印を付けるのもこの単位で一度に済ませられるようにする。
+   ブラウザは1回の操作につき1つしかタブを開かせないので、塞がれた分は
+   このすぐ下に逃げ道を出す */
+function groupBar(label, rows){
+  const withUrl = rows.filter(i => i.url);
+  const bar = $(`<div style="display:flex; gap:8px; margin-bottom:10px"></div>`);
+
+  if(withUrl.length > 1){
+    const openAll = $(`<button class="btnlike" style="flex:1">全部開く（${withUrl.length}） ↗</button>`);
+    openAll.onclick = () => {
+      if(!confirm(`${label}の購入ページ ${withUrl.length}件を新しいタブで開きます。よろしいですか？`)) return;
+      const blocked = [];
+      withUrl.forEach(i => {
+        let w = null;
+        try{ w = window.open(i.url, "_blank"); }catch(e){ w = null; }
+        // 塞がれたときの返り値はブラウザで違う（null / undefined / すぐ閉じた窓）
+        if(w && !w.closed){ try{ w.opener = null; }catch(e){} }
+        else blocked.push(i);
+      });
+      showResult(withUrl, blocked);
+    };
+    bar.appendChild(openAll);
+  }
+
+  // 注文し終わったら束ごと片づける。1件ずつの取り消しは品目を開けばできる。
+  // 1件しかない束には出さない——行の「買った」と同じことになるため
+  const boughtAll = rows.length > 1
+    ? $(`<button class="primary" style="flex:1">全部買った（${rows.length}）</button>`) : null;
+  if(boughtAll) boughtAll.onclick = async () => {
+    if(!confirm(`${label}の ${rows.length}件を「買った」にします。よろしいですか？`)) return;
+    try{ await api("/bought", "POST", {ids: rows.map(i => i.id)}); }
+    catch(e){ alert("記録できません: " + e.message); return; }
+    await load(); route();
+  };
+  if(boughtAll) bar.appendChild(boughtAll);
+
+  function showResult(items, blocked){
+    const old = bar.nextElementSibling;
+    if(old && old.classList.contains("openall-result")) old.remove();
+    if(!blocked.length) return;
+
+    const box = $(`<div class="row openall-result" style="display:block; border-color:var(--attention)">
+      <div class="sub" style="white-space:normal; color:var(--foreground)">
+        ${items.length}件のうち <b>${items.length - blocked.length}件しか開けませんでした</b>。
+        ブラウザがポップアップを塞いでいます。
+      </div>
+      <div class="sub" style="white-space:normal; margin-top:6px">
+        PC: アドレスバー右端の「ポップアップがブロックされました」から <b>常に許可</b>。<br>
+        Android Chrome: ⋮ → 設定 → サイトの設定 → ポップアップとリダイレクト → 許可。<br>
+        一度許可すれば、次からは本当に全部開きます。
+      </div>
+    </div>`);
+
+    const copy = $(`<button style="width:100%;margin-top:10px">URLをまとめてコピー（${blocked.length}件）</button>`);
+    copy.onclick = async () => {
+      const text = blocked.map(i => `${i.name}\t${i.url}`).join("\n");
+      try{ await navigator.clipboard.writeText(text); copy.textContent = "コピーしました"; }
+      catch(e){ copy.textContent = "コピーできませんでした"; }
+    };
+    box.appendChild(copy);
+
+    box.appendChild($(`<div class="sub" style="margin-top:12px">開けなかった分（押すと1件ずつ開きます）</div>`));
+    blocked.forEach(i => {
+      const line = $(`<div style="display:flex; gap:8px; align-items:center; margin-top:6px">
+        <div class="sub" style="flex:1">${esc(i.name)}</div></div>`);
+      const a = $(`<a class="btnlink" href="${esc(i.url)}" target="_blank" rel="noopener">開く ↗</a>`);
+      a.addEventListener("click", () => { line.style.opacity = ".45"; });
+      line.appendChild(a);
+      box.appendChild(line);
+    });
+    bar.after(box);
+  }
+  return bar;
+}
+
+function daysAgo(at){
+  if(!at) return null;
+  const d = Math.floor((Date.now() - new Date(at)) / 86400000);
+  return d >= 0 ? d : 0;
+}
+
+/* 購入履歴の要約。何日おきに買っているかは、タグを触り忘れたときの唯一の手がかり */
+function boughtSummary(item){
+  const b = (item.bought || []).filter(Boolean);
+  if(!b.length) return "";
+  const days = (a, z) => Math.round((new Date(a) - new Date(z)) / 86400000);
+  const since = days(new Date().toISOString(), b[0]);
+  let s = `前回 ${b[0].slice(0,10)}（${since}日前）`;
+  if(b.length >= 2){
+    const gaps = b.slice(0,-1).map((x,k)=>days(x, b[k+1]));
+    s += ` ・ 平均 ${Math.round(gaps.reduce((p,c)=>p+c,0)/gaps.length)}日おき`;
+  }
+  return s;
+}
+
+function itemRow(item, subFields, sortable){
+  const map = {
+    product: item.product,
+    genre: (genre(item.genre)||{}).name,
+    area: (area(item.area)||{}).name,
+    channels: (item.channels||[]).map(c=>CH[c]).join("・"),
+  };
+  const parts = (subFields || ["product","channels"]).map(k=>map[k]).filter(Boolean);
+  // 前に買ったのがいつかは、その場で買うかどうかを決める材料になるので行に出す
+  const ago = daysAgo(item.last_bought);
+  if(ago !== null) parts.push(`購入: ${ago === 0 ? "今日" : ago + "日前"}`);
+  const sub = parts.join(" / ");
+  const row = $(`<div class="row s-${item.status}" ${sortable?`data-sid="${item.id}"`:""}>
+    ${sortable?`<span class="grip" title="ドラッグで並べ替え">⠿</span>`:""}
+    <div class="info">
+      <div class="name">${esc(item.name)} ${item.tag?`<span class="tagpill">#${esc(item.tag)}</span>`:""}</div>
+      ${sub?`<div class="sub">${esc(sub)}</div>`:""}
+    </div>
+  </div>`);
+  // 「買うもの」の行では、次にやることは買うこと。ある/欲しいの切り替えではなく
+  // 「買った」を出す（取り消し・状態の直しは行をタップしてシートで）
+  if(subFields && subFields.includes("bought")){
+    if(item.url){
+      row.appendChild($(`<a class="btnlink" href="${esc(item.url)}"
+        target="_blank" rel="noopener">開く ↗</a>`));
+    }
+    const b = $(`<button class="primary" style="flex:0 0 auto">買った</button>`);
+    b.onclick = async ev => {
+      ev.stopPropagation();
+      await api("/items/"+item.id+"/bought", "POST", {});
+      await load(); route();
+    };
+    row.appendChild(b);
+  }else{
+    row.appendChild(statusSeg(item));
+  }
+  row.querySelector(".info").onclick = () => openItemSheet(item);
+  return row;
+}
+
+function channelTabs(onPick){
+  const need = wanted();
+  const tabs = [["all","すべて"], ...Object.entries(CH)]
+    .map(([k,v]) => [k, v, need.filter(i=>inChannel(i,k)).length])
+    .filter(([k,,n]) => k === "all" || n > 0);
+  const el = $(`<div class="tabs">${tabs.map(([k,v,n]) =>
+    `<button class="tab ${homeTab===k?"on":""}" data-c="${k}">${v}<span class="n">${n}</span></button>`).join("")}</div>`);
+  el.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+    homeTab = b.dataset.c; localStorage.setItem("stock-tab", homeTab); onPick();
+  });
+  return el;
+}
+
+/* ---------------------------------------------------------------- 画面 */
+
+function viewHome(){
+  document.getElementById("title").textContent = "買うものリスト";
+  document.getElementById("back").style.display = "none";
+  app.innerHTML = "";
+
+  const need = wanted();
+  app.appendChild($(`<h2>買うもの（${need.length}）</h2>`));
+  app.appendChild(channelTabs(viewHome));
+
+  const list = need.filter(i => inChannel(i, homeTab));
+  if(!list.length){
+    app.appendChild($(`<div class="empty">${need.length?"この買い方のものはありません。":"欲しいものはありません。"}</div>`));
+  }else{
+    // 買うものは「どこで買うか」で束ねる。ネット通販はサイトごと——注文はサイト単位で
+    // 済ませるものなので、Amazon の分・楽天の分と分かれていないと片づけられない
+    const groups = new Map();
+    list.forEach(i => {
+      const key = i.url ? siteLabel(i.url)
+                        : (CH[(i.channels || [])[0]] || "その他");
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(i);
+    });
+    // 通販サイト（URLがある束）を先に、件数の多い順
+    const ordered = [...groups.entries()].sort((a, b) =>
+      (a[1][0].url ? 0 : 1) - (b[1][0].url ? 0 : 1) || b[1].length - a[1].length);
+
+    ordered.forEach(([label, rows]) => {
+      app.appendChild($(`<h2 style="margin-top:14px">${esc(label)}（${rows.length}）</h2>`));
+      const bar = groupBar(label, rows);
+      if(bar.children.length) app.appendChild(bar);
+      rows.forEach(i => app.appendChild(itemRow(i, ["genre", "bought"])));
+    });
+  }
+
+  const modeRow = $(`<h2 style="display:flex;align-items:center;gap:10px">
+    <span>置き場所</span>
+    <span class="seg" style="margin-left:auto">
+      <button data-m="area" class="${homeMode==="area"?"on":""}" style="${homeMode==="area"?"background:var(--primary);color:#fff":""}">場所</button>
+      <button data-m="genre" class="${homeMode==="genre"?"on":""}" style="${homeMode==="genre"?"background:var(--primary);color:#fff":""}">種類</button>
+    </span></h2>`);
+  modeRow.querySelectorAll("button").forEach(b => b.onclick = () => {
+    homeMode = b.dataset.m; localStorage.setItem("stock-mode", homeMode); viewHome();
+  });
+  modeRow.querySelector("span").textContent = homeMode === "area" ? "置き場所" : "種類";
+  app.appendChild(modeRow);
+
+  const grid = $(`<div class="grid"></div>`);
+  const groups = homeMode === "area"
+    ? S.areas.map(a => [a, S.items.filter(i=>i.area===a.id), "/a/"+a.id])
+    : S.genres.map(g => [g, S.items.filter(i=>i.genre===g.id), "/g/"+g.id]);
+  groups.forEach(([g, items, href]) => {
+    const n = items.filter(i=>i.status==="want").length;
+    grid.appendChild($(`<a class="card" data-nav href="${href}" data-sid="${g.id}">
+      <span class="grip" title="ドラッグで並べ替え">⠿</span>
+      <div class="n">${esc(g.name)}</div>
+      <div class="c">${items.length}品${n?` ・ <span class="badge">${n}件</span>`:""}</div>
+    </a>`));
+  });
+  app.appendChild(grid);
+  makeSortable(grid, homeMode === "area" ? "areas" : "genres");
+
+  const add = $(`<button class="fab">＋ ${homeMode==="area"?"場所":"種類"}</button>`);
+  add.onclick = () => openGroupSheet(homeMode);
+  app.appendChild(add);
+}
+
+function viewGroup(kind, id){
+  const g = kind === "area" ? area(id) : genre(id);
+  if(!g){ app.innerHTML = `<div class="empty">見つかりません。</div>`; return; }
+  document.getElementById("title").textContent = g.name;
+  document.getElementById("back").style.display = "";
+  app.innerHTML = "";
+
+  const items = S.items.filter(i => (kind==="area" ? i.area : i.genre) === id);
+  if(!items.length) app.appendChild($(`<div class="empty">まだ品目がありません。</div>`));
+
+  // 並びは配列の順そのもの（名前順ソートはしない——ドラッグで決めた順を守るため）。
+  // 並べ替えは見出しごとの容れ物の中だけで効く（見出しをまたぐ移動は種類の変更なので、
+  // 品目を開いて「種類」を変える方に倒す）
+  if(kind === "area"){
+    // 種類の見出しごと掴んで動かせる（見出しの並べ替え = ジャンルの並べ替え。
+    // ここで動かした順はトップの「種類」表示にもそのまま出る）
+    const sections = $(`<div></div>`);
+    S.genres.forEach(gn => {
+      const rows = items.filter(i=>i.genre===gn.id);
+      if(!rows.length) return;
+      const sec = $(`<div data-sid="${gn.id}">
+        <h2 style="display:flex;align-items:center;gap:6px">
+          <span class="grip" title="ドラッグで並べ替え">⠿</span>${esc(gn.name)}</h2>
+      </div>`);
+      const box = $(`<div></div>`);
+      rows.forEach(i => box.appendChild(itemRow(i, ["product"], true)));
+      sec.appendChild(box);
+      sections.appendChild(sec);
+      makeSortable(box, "items");
+    });
+    app.appendChild(sections);
+    makeSortable(sections, "genres");
+  }else{
+    const box = $(`<div></div>`);
+    items.forEach(i => box.appendChild(itemRow(i, ["product","area"], true)));
+    app.appendChild(box);
+    makeSortable(box, "items");
+  }
+
+  const add = $(`<button class="fab">＋ 品目</button>`);
+  add.onclick = () => openItemSheet(null, kind==="genre"?id:null, null, kind==="area"?id:null);
+  app.appendChild(add);
+}
+
+function viewTags(){
+  document.getElementById("title").textContent = "タグ";
+  document.getElementById("back").style.display = "";
+  app.innerHTML = "";
+  const bound = S.items.filter(i=>i.tag);
+  app.appendChild($(`<h2>紐付け済み（${bound.length} / ${S.items.length}）</h2>`));
+  app.appendChild($(`<div class="empty small">タグに書く URL は <b>${location.origin}/t/&lt;好きな文字列&gt;</b>。
+    連番で構いません。未登録のタグをかざすと、その場で品目に紐付けられます。</div>`));
+  bound.slice().sort((a,b)=>a.tag.localeCompare(b.tag)).forEach(i =>
+    app.appendChild($(`<div class="row"><div class="info">
+      <div class="name"><span class="tagpill">#${esc(i.tag)}</span> ${esc(i.name)}</div>
+      <div class="sub">${esc(location.origin)}/t/${esc(i.tag)}</div></div></div>`)));
+}
+
+async function viewTap(tag){
+  document.getElementById("title").textContent = "タグ";
+  document.getElementById("back").style.display = "none";
+  app.innerHTML = `<div class="empty">読み取り中…</div>`;
+
+  let res;
+  try{
+    res = await fetch("/api/tags/"+encodeURIComponent(tag)+"/tap", {method:"POST"}).then(r=>r.json());
+  }catch(e){
+    app.innerHTML = `<div class="empty">通信できませんでした。</div>`; return;
+  }
+  await load();
+
+  if(!res.bound){ renderBind(tag); return; }
+  const item = res.item;
+  app.innerHTML = "";
+  const box = $(`<div class="tapresult">
+    <div class="icon">🛒</div>
+    <div class="what">${esc(item.name)}</div>
+    <div class="msg">${res.changed ? "「欲しい」に入れました。" : "すでに「欲しい」に入っています。"}</div>
+  </div>`);
+  const acts = $(`<div style="display:flex;gap:8px;max-width:420px;margin:0 auto;"></div>`);
+  const undo = $(`<button class="ghost" style="flex:1">取り消す</button>`);
+  undo.onclick = async () => { await api("/items/"+item.id,"POST",{status:"ok"}); await load(); nav("/"); };
+  const home = $(`<button style="flex:1">一覧へ</button>`);
+  home.onclick = () => nav("/");
+  acts.append(undo, home);
+  box.appendChild(acts);
+  app.appendChild(box);
+}
+
+function renderBind(tag){
+  app.innerHTML = "";
+  app.appendChild($(`<div class="tapresult" style="padding-bottom:6px">
+    <div class="icon">🏷️</div>
+    <div class="what">未登録のタグ</div>
+    <div class="msg"><span class="tagpill">#${esc(tag)}</span> をどの品目に紐付けますか。</div>
+  </div>`));
+
+  const sel = $(`<select><option value="">— 既存の品目から選ぶ —</option>${
+    S.genres.map(g => `<optgroup label="${esc(g.name)}">${
+      S.items.filter(i=>i.genre===g.id && !i.tag).map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join("")
+    }</optgroup>`).join("")}</select>`);
+  const bind = $(`<button class="primary" style="width:100%;margin-top:10px">このタグを紐付ける</button>`);
+  bind.onclick = async () => {
+    if(!sel.value) return;
+    await api("/tags/"+encodeURIComponent(tag)+"/bind", "POST", {item_id:sel.value});
+    await api("/items/"+sel.value, "POST", {status:"want", src:"nfc"});
+    await load(); nav("/");
+  };
+  const create = $(`<button style="width:100%;margin-top:8px">新しい品目として登録する</button>`);
+  create.onclick = () => openItemSheet(null, (S.genres[0]||{}).id, tag);
+  app.append(sel, bind, create);
+}
+
+/* ---------------------------------------------------------------- 入力シート */
+
+function closeSheet(){ sheetHost.innerHTML = ""; }
+
+// 黒い背景を押したら閉じる。click で拾うので、中で始めたドラッグが外で終わっても閉じない
+sheetHost.addEventListener("click", e => {
+  if(e.target.classList.contains("sheet")) closeSheet();
+});
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape") closeSheet();
+});
+
+function openGroupSheet(kind){
+  const what = kind === "area" ? "場所" : "種類";
+  const sheet = $(`<div class="sheet"><div class="inner">
+    <h2 style="margin-top:0">${what}を追加</h2>
+    <label>${what}の名前</label>
+    <input id="gname" placeholder="${kind==="area"?"例: 玄関":"例: 掃除"}">
+    <div class="actions">
+      <button class="ghost" id="cancel">やめる</button>
+      <button class="primary" id="save">追加</button>
+    </div></div></div>`);
+  sheet.querySelector("#cancel").onclick = closeSheet;
+  sheet.querySelector("#save").onclick = async () => {
+    const name = sheet.querySelector("#gname").value.trim();
+    if(!name) return;
+    try{ await api(kind==="area"?"/areas":"/genres", "POST", {name}); }
+    catch(e){ alert("追加できません: "+e.message); return; }
+    closeSheet(); await load(); route();
+  };
+  sheetHost.appendChild(sheet);
+  sheet.querySelector("#gname").focus();
+}
+
+function openItemSheet(item, defaultGenre, presetTag, defaultArea){
+  const it = item || {name:"", product:"", url:"", note:"", channels:[], status:"ok",
+                      genre: defaultGenre || (S.genres[0]||{}).id,
+                      area: defaultArea || (S.areas[0]||{}).id, tag: presetTag || ""};
+  const sheet = $(`<div class="sheet"><div class="inner">
+    <h2 style="margin-top:0">${item ? "品目を編集" : "品目を追加"}</h2>
+    <label>一般名 <span class="muted">（必須）</span></label>
+    <input id="f-name" value="${esc(it.name)}" placeholder="例: シャンプー">
+    <label>製品名</label>
+    <input id="f-product" value="${esc(it.product||"")}" placeholder="例: プリュスオー リフィル">
+    <label>種類</label>
+    <select id="f-genre">${S.genres.map(g=>`<option value="${g.id}" ${g.id===it.genre?"selected":""}>${esc(g.name)}</option>`).join("")}</select>
+    <label>置き場所</label>
+    <select id="f-area">${S.areas.map(a=>`<option value="${a.id}" ${a.id===it.area?"selected":""}>${esc(a.name)}</option>`).join("")}</select>
+    <label>買い方</label>
+    <div class="chips" id="f-ch">${Object.entries(CH).map(([k,v])=>
+      `<span class="chip ${(it.channels||[]).includes(k)?"on":""}" data-c="${k}">${v}</span>`).join("")}</div>
+    <label>購入URL</label>
+    <input id="f-url" value="${esc(it.url||"")}" placeholder="https://…">
+    <label>NFCタグID <span class="muted">（空でも可）</span></label>
+    <input id="f-tag" value="${esc(it.tag||"")}" placeholder="例: 07">
+    <label>メモ</label>
+    <input id="f-note" value="${esc(it.note||"")}">
+    ${item?`<div id="f-bought"></div>`:""}
+    <div class="actions">
+      <button class="ghost" id="cancel">やめる</button>
+      ${item?`<button class="danger" id="del">削除</button>`:""}
+      <button class="primary" id="save">${item?"保存":"追加"}</button>
+    </div>
+  </div></div>`);
+
+  sheet.querySelectorAll("#f-ch .chip").forEach(c => c.onclick = () => c.classList.toggle("on"));
+  sheet.querySelector("#cancel").onclick = closeSheet;
+
+  // 買った記録。押すと購入日が積まれて「ある」に戻る。履歴はここに全部出す
+  const boughtBox = sheet.querySelector("#f-bought");
+  if(boughtBox) renderBought();
+  function renderBought(){
+    const cur = S.items.find(x => x.id === item.id) || item;
+    const list = (cur.bought || []).filter(Boolean);
+    boughtBox.innerHTML = "";
+    boughtBox.appendChild($(`<label style="margin-bottom:6px">買った記録</label>`));
+    const line = $(`<div style="display:flex; gap:8px"></div>`);
+    const b = $(`<button class="primary" style="flex:1">買った</button>`);
+    b.onclick = async () => {
+      await api("/items/"+item.id+"/bought", "POST", {});
+      await load(); renderBought();
+    };
+    const url = (sheet.querySelector("#f-url").value || "").trim();
+    if(url){
+      line.appendChild($(`<a class="btnlink" style="flex:1; text-align:center"
+        href="${esc(url)}" target="_blank" rel="noopener">購入ページを開く ↗</a>`));
+    }
+    line.appendChild(b);
+    boughtBox.appendChild(line);
+    if(!list.length){
+      boughtBox.appendChild($(`<div class="empty small">まだ記録がありません。</div>`));
+      return;
+    }
+    boughtBox.appendChild($(`<div class="empty small">${esc(boughtSummary(cur))}</div>`));
+    const days = (a, z) => Math.round((new Date(a) - new Date(z)) / 86400000);
+    list.forEach((at, k) => {
+      const gap = k + 1 < list.length ? `（前回から ${days(at, list[k+1])}日）` : "";
+      boughtBox.appendChild($(`<div class="row" style="padding:7px 12px;margin-bottom:6px">
+        <div class="info"><div class="sub">${esc(at.slice(0,16).replace("T"," "))} ${esc(gap)}</div></div>
+      </div>`));
+    });
+    const undo = $(`<button class="ghost small" style="width:100%">直近の記録を取り消す</button>`);
+    undo.onclick = async () => {
+      await api("/items/"+item.id+"/bought", "POST", {undo:true});
+      await load(); renderBought();
+    };
+    boughtBox.appendChild(undo);
+  }
+  const delBtn = sheet.querySelector("#del");
+  if(delBtn) delBtn.onclick = async () => {
+    if(!confirm(`${it.name} を削除しますか`)) return;
+    await api("/items/"+item.id, "DELETE");
+    closeSheet(); await load(); route();
+  };
+  sheet.querySelector("#save").onclick = async () => {
+    const body = {
+      name: sheet.querySelector("#f-name").value.trim(),
+      product: sheet.querySelector("#f-product").value.trim(),
+      genre: sheet.querySelector("#f-genre").value,
+      area: sheet.querySelector("#f-area").value,
+      url: sheet.querySelector("#f-url").value.trim(),
+      tag: sheet.querySelector("#f-tag").value.trim(),
+      note: sheet.querySelector("#f-note").value.trim(),
+      channels: [...sheet.querySelectorAll("#f-ch .chip.on")].map(c=>c.dataset.c),
+    };
+    if(!body.name) return;
+    try{
+      if(item) await api("/items/"+item.id, "POST", body);
+      else await api("/items", "POST", body);
+    }catch(e){ alert("保存できません: "+e.message); return; }
+    closeSheet(); await load();
+    if(!item && presetTag) nav("/"); else route();
+  };
+  sheetHost.appendChild(sheet);
+}
+
+/* ---------------------------------------------------------------- ルーティング */
+
+function route(){
+  const p = location.pathname;
+  closeSheet();
+  if(p.startsWith("/t/")) return viewTap(decodeURIComponent(p.slice(3)));
+  if(p.startsWith("/a/")) return viewGroup("area", decodeURIComponent(p.slice(3)));
+  if(p.startsWith("/g/")) return viewGroup("genre", decodeURIComponent(p.slice(3)));
+  if(p === "/tags") return viewTags();
+  return viewHome();
+}
+
+(async () => { await load(); route(); })();
+</script>
+</body>
+</html>

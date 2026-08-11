@@ -1,0 +1,14 @@
+# 雛形。パスと KAUMONO_DATA を自分の環境に書き換えて /etc/systemd/system/ に置く。
+[Unit]
+Description=kaumono 買うものリスト (:8689)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/kaumono
+Environment=KAUMONO_DATA=/home/ubuntu/kaumono-data
+ExecStart=/usr/bin/python3 /home/ubuntu/kaumono/server.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
