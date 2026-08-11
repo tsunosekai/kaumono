@@ -505,6 +505,11 @@ def api_tag_tap(tag):
 
 # ---------------------------------------------------------------- 画面
 
+@app.get("/favicon.svg")
+def favicon():
+    return send_file(BASE / "static" / "favicon.svg", mimetype="image/svg+xml")
+
+
 def index(**_path_params):
     """全ページで同じ HTML を返し、振り分けはブラウザ側の route() が行う。
     パス変数（gid / tag）はサーバでは使わないので捨てる。"""
