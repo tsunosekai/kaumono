@@ -573,11 +573,11 @@ function viewHome(){
     });
   }
 
-  const MODES = {area:"置き場所", genre:"種類", site:"買う店"};
+  const MODES = {area:"置き場所", genre:"種類", site:"買う店", channel:"買い方"};
   const modeRow = $(`<h2 style="display:flex;align-items:center;gap:10px">
     <span>${MODES[homeMode]}</span>
     <span class="seg" style="margin-left:auto">
-      ${Object.entries({area:"場所", genre:"種類", site:"店"}).map(([k,v]) =>
+      ${Object.entries({area:"場所", genre:"種類", site:"店", channel:"買い方"}).map(([k,v]) =>
         `<button data-m="${k}" style="${homeMode===k?"background:var(--primary);color:#fff":""}">${v}</button>`).join("")}
     </span></h2>`);
   modeRow.querySelectorAll("button").forEach(b => b.onclick = () => {
@@ -591,6 +591,8 @@ function viewHome(){
     ? S.areas.map(a => [a.name, a.id, S.items.filter(i=>i.area===a.id), "/a/"+a.id])
     : homeMode === "genre"
     ? S.genres.map(g => [g.name, g.id, S.items.filter(i=>i.genre===g.id), "/g/"+g.id])
+    : homeMode === "channel"
+    ? channelGroups().map(([key, name, rows]) => [name, null, rows, "/c/"+key])
     : siteGroups().map(([label, rows]) => [label, null, rows, "/s/"+encodeURIComponent(label)]);
 
   groups.forEach(([name, sid, items, href]) => {
@@ -602,11 +604,23 @@ function viewHome(){
     </a>`));
   });
   app.appendChild(grid);
-  if(homeMode !== "site") makeSortable(grid, homeMode === "area" ? "areas" : "genres");
+  if(homeMode === "area" || homeMode === "genre") makeSortable(grid, homeMode === "area" ? "areas" : "genres");
 
   const add = $(`<button class="fab">＋ ${homeMode==="area"?"場所":homeMode==="genre"?"種類":"品目"}</button>`);
-  add.onclick = () => homeMode === "site" ? openItemSheet(null) : openGroupSheet(homeMode);
+  add.onclick = () => (homeMode === "site" || homeMode === "channel")
+    ? openItemSheet(null) : openGroupSheet(homeMode);
   app.appendChild(add);
+}
+
+/* 買い方の一覧。品目は買い方を複数持てる（醤油はスーパーでもネットでも買える）ので、
+   同じ品目が複数の束に出る。買い方が空のものは「未設定」へ */
+function channelGroups(){
+  const groups = Object.entries(CH)
+    .map(([k, name]) => [k, name, S.items.filter(i => (i.channels||[]).includes(k))])
+    .filter(([, , rows]) => rows.length);
+  const none = S.items.filter(i => !(i.channels||[]).length);
+  if(none.length) groups.push(["none", "未設定", none]);
+  return groups;
 }
 
 /* 店の一覧。URL のホストから導き、品数の多い順。URLの無いものは最後にまとめる */
@@ -622,7 +636,9 @@ function siteGroups(){
 }
 
 function viewGroup(kind, id){
-  const g = kind === "site" ? {name:id} : kind === "area" ? area(id) : genre(id);
+  const g = kind === "site" ? {name:id}
+    : kind === "channel" ? {name: id === "none" ? "買い方 未設定" : (CH[id] || id)}
+    : kind === "area" ? area(id) : genre(id);
   if(!g){ app.innerHTML = `<div class="empty">見つかりません。</div>`; return; }
   document.getElementById("title").textContent = g.name;
   document.getElementById("back").style.display = "";
@@ -630,13 +646,15 @@ function viewGroup(kind, id){
 
   const items = kind === "site"
     ? S.items.filter(i => (i.url ? siteLabel(i.url) : "URLなし") === id)
+    : kind === "channel"
+    ? S.items.filter(i => id === "none" ? !(i.channels||[]).length : (i.channels||[]).includes(id))
     : S.items.filter(i => (kind==="area" ? i.area : i.genre) === id);
   if(!items.length) app.appendChild($(`<div class="empty">まだ品目がありません。</div>`));
 
   // 並びは配列の順そのもの（名前順ソートはしない——ドラッグで決めた順を守るため）。
   // 並べ替えは見出しごとの容れ物の中だけで効く（見出しをまたぐ移動は種類の変更なので、
   // 品目を開いて「種類」を変える方に倒す）
-  if(kind === "site"){
+  if(kind === "site" || kind === "channel"){
     // 店ページは並べ替えない（店は URL から導くだけで実体を持たない）。
     // 欲しいものが溜まったら、ここからそのままカゴに入れに行ける
     const need = items.filter(i => i.status === "want");
@@ -668,7 +686,7 @@ function viewGroup(kind, id){
     makeSortable(box, "items");
   }
 
-  if(kind !== "site"){
+  if(kind !== "site" && kind !== "channel"){
     const add = $(`<button class="fab">＋ 品目</button>`);
     add.onclick = () => openItemSheet(null, kind==="genre"?id:null, null, kind==="area"?id:null);
     app.appendChild(add);
@@ -888,6 +906,7 @@ function route(){
   if(p.startsWith("/t/")) return viewTap(decodeURIComponent(p.slice(3)));
   if(p.startsWith("/a/")) return viewGroup("area", decodeURIComponent(p.slice(3)));
   if(p.startsWith("/s/")) return viewGroup("site", decodeURIComponent(p.slice(3)));
+  if(p.startsWith("/c/")) return viewGroup("channel", decodeURIComponent(p.slice(3)));
   if(p.startsWith("/g/")) return viewGroup("genre", decodeURIComponent(p.slice(3)));
   if(p === "/tags") return viewTags();
   return viewHome();
