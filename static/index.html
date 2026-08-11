@@ -764,14 +764,51 @@ function renderBind(tag){
 
 /* ---------------------------------------------------------------- 入力シート */
 
-function closeSheet(){ sheetHost.innerHTML = ""; }
+/* 開いているシートが「まだ保存していない変更」を持っているかと、その保存手順。
+   背景を押す / Escape で閉じようとしたときだけ確認を挟む（「やめる」は明示的な破棄なので聞かない） */
+let sheetDirty = null;   // () => bool
+let sheetSave = null;    // async () => void
 
-// 黒い背景を押したら閉じる。click で拾うので、中で始めたドラッグが外で終わっても閉じない
+function closeSheet(){ sheetHost.innerHTML = ""; sheetDirty = null; sheetSave = null; }
+
+function requestCloseSheet(){
+  if(sheetDirty && sheetDirty()) askSaveBeforeClose();
+  else closeSheet();
+}
+
+function askSaveBeforeClose(){
+  const box = $(`<div class="sheet confirm" style="align-items:center">
+    <div class="inner" style="border-radius:var(--radius); max-width:380px; margin:0 16px">
+      <div style="font-weight:600; margin-bottom:6px">変更を保存しますか</div>
+      <div class="sub" style="color:var(--muted-foreground); white-space:normal">
+        編集した内容がまだ保存されていません。
+      </div>
+      <div class="actions">
+        <button class="ghost" id="c-stay">編集に戻る</button>
+        <button id="c-discard">保存しない</button>
+        <button class="primary" id="c-save">保存する</button>
+      </div>
+    </div></div>`);
+  box.querySelector("#c-stay").onclick = () => box.remove();
+  box.querySelector("#c-discard").onclick = () => { box.remove(); closeSheet(); };
+  box.querySelector("#c-save").onclick = async () => {
+    const save = sheetSave;
+    box.remove();
+    if(save) await save();
+  };
+  sheetHost.appendChild(box);
+}
+
+// 黒い背景を押したら閉じる。click で拾うので、中で始めたドラッグが外で終わっても閉じない。
+// 確認が出ている間は、その3択で答えるまで背景では閉じない
 sheetHost.addEventListener("click", e => {
-  if(e.target.classList.contains("sheet")) closeSheet();
+  if(sheetHost.querySelector(".confirm")) return;
+  if(e.target.classList.contains("sheet")) requestCloseSheet();
 });
 document.addEventListener("keydown", e => {
-  if(e.key === "Escape") closeSheet();
+  if(e.key !== "Escape") return;
+  if(sheetHost.querySelector(".confirm")) return;
+  requestCloseSheet();
 });
 
 function openGroupSheet(kind){
@@ -785,15 +822,19 @@ function openGroupSheet(kind){
       <button class="primary" id="save">追加</button>
     </div></div></div>`);
   sheet.querySelector("#cancel").onclick = closeSheet;
-  sheet.querySelector("#save").onclick = async () => {
+  async function doSave(){
     const name = sheet.querySelector("#gname").value.trim();
-    if(!name) return;
+    if(!name){ alert(what + "の名前を入れてください"); return; }
     try{ await api(kind==="area"?"/areas":"/genres", "POST", {name}); }
     catch(e){ alert("追加できません: "+e.message); return; }
     closeSheet(); await load(); route();
-  };
+  }
+  sheet.querySelector("#save").onclick = doSave;
   sheetHost.appendChild(sheet);
   sheet.querySelector("#gname").focus();
+
+  sheetDirty = () => sheet.querySelector("#gname").value.trim() !== "";
+  sheetSave = doSave;
 }
 
 function openItemSheet(item, defaultGenre, presetTag, defaultArea){
@@ -876,26 +917,35 @@ function openItemSheet(item, defaultGenre, presetTag, defaultArea){
     await api("/items/"+item.id, "DELETE");
     closeSheet(); await load(); route();
   };
-  sheet.querySelector("#save").onclick = async () => {
-    const body = {
-      name: sheet.querySelector("#f-name").value.trim(),
-      product: sheet.querySelector("#f-product").value.trim(),
-      genre: sheet.querySelector("#f-genre").value,
-      area: sheet.querySelector("#f-area").value,
-      url: sheet.querySelector("#f-url").value.trim(),
-      tag: sheet.querySelector("#f-tag").value.trim(),
-      note: sheet.querySelector("#f-note").value.trim(),
-      channels: [...sheet.querySelectorAll("#f-ch .chip.on")].map(c=>c.dataset.c),
-    };
-    if(!body.name) return;
+  const readForm = () => ({
+    name: sheet.querySelector("#f-name").value.trim(),
+    product: sheet.querySelector("#f-product").value.trim(),
+    genre: sheet.querySelector("#f-genre").value,
+    area: sheet.querySelector("#f-area").value,
+    url: sheet.querySelector("#f-url").value.trim(),
+    tag: sheet.querySelector("#f-tag").value.trim(),
+    note: sheet.querySelector("#f-note").value.trim(),
+    channels: [...sheet.querySelectorAll("#f-ch .chip.on")].map(c=>c.dataset.c),
+  });
+
+  async function doSave(){
+    const body = readForm();
+    if(!body.name){ alert("一般名は必須です"); return; }
     try{
       if(item) await api("/items/"+item.id, "POST", body);
       else await api("/items", "POST", body);
     }catch(e){ alert("保存できません: "+e.message); return; }
     closeSheet(); await load();
     if(!item && presetTag) nav("/"); else route();
-  };
+  }
+  sheet.querySelector("#save").onclick = doSave;
+
   sheetHost.appendChild(sheet);
+
+  // 開いた時点の中身と見比べて、変わっていれば閉じる前に確認する
+  const snapshot = JSON.stringify(readForm());
+  sheetDirty = () => JSON.stringify(readForm()) !== snapshot;
+  sheetSave = doSave;
 }
 
 /* ---------------------------------------------------------------- ルーティング */
