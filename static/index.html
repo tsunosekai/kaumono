@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>買うものリスト</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<meta name="theme-color" content="#f7f8fa">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 /* 配色・角丸・書体・格子背景は GraphWrangler (apps/ui/src/index.css) のトークンに揃える。
    既定はライト、.dark で切り替え（本人指定: デフォはライト）。 */
@@ -203,8 +209,12 @@ let homeTab = localStorage.getItem("stock-tab") || "all";   // 買い方の絞�
 let homeMode = localStorage.getItem("stock-mode") || "area"; // 場所 / 種類
 
 function applyTheme(t){
-  document.body.classList.toggle("dark", t === "dark");
-  document.documentElement.classList.toggle("dark", t === "dark");
+  const dark = t === "dark";
+  document.body.classList.toggle("dark", dark);
+  document.documentElement.classList.toggle("dark", dark);
+  // ホーム画面から起動すると全画面になるので、端末側のバーの色も揃える
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute("content", dark ? "#0b0d10" : "#f7f8fa");
 }
 let theme = localStorage.getItem("stock-theme") || "light";
 applyTheme(theme);

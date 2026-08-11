@@ -258,7 +258,10 @@ class StockServerTest(unittest.TestCase):
         self.assertEqual(server.load_state(), server.empty_state())
 
     def test_pages_are_served(self):
-        for path in ("/", "/g/bath", "/a/kitchen", "/t/07", "/tags", "/favicon.svg"):
+        for path in ("/", "/g/bath", "/a/kitchen", "/t/07", "/tags", "/favicon.svg",
+                     "/static/manifest.json", "/static/icon-192.png",
+                     "/static/icon-512.png", "/static/icon-maskable-512.png",
+                     "/static/apple-touch-icon.png"):
             self.assertEqual(self.c.get(path).status_code, 200, path)
 
 

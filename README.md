@@ -46,6 +46,12 @@ JSON 1枚なので、中身を見るのも別の場所へ移すのも簡単。
 `systemd/kaumono.service` を雛形として使う。`KAUMONO_DATA` と各パスを自分の環境に
 書き換えて `/etc/systemd/system/` に置く。
 
+### ホーム画面に追加する
+
+`manifest.json` を持たせてあるので、スマホのブラウザから「ホーム画面に追加」すると
+アドレスバーの無い全画面で立ち上がる。アイコンは Lucide の shopping-bag（192/512/
+maskable と apple-touch-icon）。端末上部のバーの色はアプリのライト/ダークに追従する。
+
 ### URLの正規化を定期実行する
 
 短縮リンク（`amzn.asia` 等）の解決にはネットワークが要るので、保存時ではなく
