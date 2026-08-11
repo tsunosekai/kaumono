@@ -158,6 +158,11 @@ a.card:hover{border-color:var(--border-hover);}
 .tab.on{background:var(--primary); border-color:var(--primary); color:var(--primary-foreground);}
 .tab .n{opacity:.7; margin-left:5px; font-size:11px;}
 
+/* 前に買ったのがいつか。買うかどうかを決める直前に目に入るよう、操作ボタンの真横に置く */
+.ago{
+  flex:0 0 auto; font-size:11px; color:var(--text-lo); white-space:nowrap;
+}
+
 .tagpill{
   font-size:11px; color:var(--text-lo); border:1px solid var(--border);
   border-radius:5px; padding:1px 5px;
@@ -472,9 +477,6 @@ function itemRow(item, subFields, sortable){
     channels: (item.channels||[]).map(c=>CH[c]).join("・"),
   };
   const parts = (subFields || ["product","channels"]).map(k=>map[k]).filter(Boolean);
-  // 前に買ったのがいつかは、その場で買うかどうかを決める材料になるので行に出す
-  const ago = daysAgo(item.last_bought);
-  if(ago !== null) parts.push(`購入: ${ago === 0 ? "今日" : ago + "日前"}`);
   const sub = parts.join(" / ");
   const row = $(`<div class="row s-${item.status}" ${sortable?`data-sid="${item.id}"`:""}>
     ${sortable?`<span class="grip" title="ドラッグで並べ替え">⠿</span>`:""}
@@ -485,6 +487,11 @@ function itemRow(item, subFields, sortable){
   </div>`);
   // 「買うもの」の行では、次にやることは買うこと。ある/欲しいの切り替えではなく
   // 「買った」を出す（取り消し・状態の直しは行をタップしてシートで）
+  const ago = daysAgo(item.last_bought);
+  if(ago !== null){
+    row.appendChild($(`<span class="ago">購入 ${ago === 0 ? "今日" : ago + "日前"}</span>`));
+  }
+
   if(subFields && subFields.includes("bought")){
     if(item.url){
       row.appendChild($(`<a class="btnlink" href="${esc(item.url)}"
