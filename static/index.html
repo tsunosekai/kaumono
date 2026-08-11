@@ -365,10 +365,23 @@ const SITES = [
   [/(^|\.)ok-netsuper\.com$/, "オーケー"],
 ];
 
+// モール（楽天・Yahoo!）は店ごとに送料無料の条件が違うので、店名まで出さないと
+// 「まとめて買えば送料無料」の判断ができない。URLの1階層目が店のIDになっている
+const MALLS = [
+  [/(^|\.)item\.rakuten\.co\.jp$/, "楽天"],
+  [/(^|\.)store\.shopping\.yahoo\.co\.jp$/, "Yahoo!"],
+];
+
 function siteLabel(url){
-  let host;
-  try{ host = new URL(url).hostname.toLowerCase().replace(/^www\./, ""); }
-  catch(e){ return "その他"; }
+  let u;
+  try{ u = new URL(url); }catch(e){ return "その他"; }
+  const host = u.hostname.toLowerCase().replace(/^www\./, "");
+
+  const mall = MALLS.find(([re]) => re.test(host));
+  if(mall){
+    const shop = u.pathname.split("/").filter(Boolean)[0];
+    return shop ? `${mall[1]} ${shop}` : mall[1];
+  }
   const hit = SITES.find(([re]) => re.test(host));
   return hit ? hit[1] : host;
 }
