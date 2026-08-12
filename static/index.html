@@ -184,8 +184,8 @@ a.card:hover{border-color:var(--border-hover);}
 
 .tapresult{text-align:center; padding:34px 10px 10px;}
 .tapresult .icon{font-size:50px; line-height:1;}
-.tapresult .what{font-size:24px; font-weight:600; margin:14px 0 4px;}
-.tapresult .msg{color:var(--muted-foreground); margin-bottom:24px;}
+.tapresult .what{font-size:24px; font-weight:600; margin:14px 0 2px;}
+.tapresult .msg{color:var(--muted-foreground); margin-bottom:24px; font-size:15px;}
 
 .fab{
   position:fixed; right:16px; bottom:22px; z-index:9;
@@ -726,7 +726,9 @@ async function viewTap(tag){
   const box = $(`<div class="tapresult">
     <div class="icon">🛒</div>
     <div class="what">${esc(item.name)}</div>
-    <div class="msg">${res.changed ? "「欲しい」に入れました。" : "すでに「欲しい」に入っています。"}</div>
+    <div class="msg">${res.changed
+      ? "を <b>買うものリストに登録しました</b>"
+      : "は <b>すでに買うものリストに入っています</b>"}</div>
   </div>`);
   const acts = $(`<div style="display:flex;gap:8px;max-width:420px;margin:0 auto;"></div>`);
   const undo = $(`<button class="ghost" style="flex:1">取り消す</button>`);
@@ -856,7 +858,13 @@ function openItemSheet(item, defaultGenre, presetTag, defaultArea){
       `<span class="chip ${(it.channels||[]).includes(k)?"on":""}" data-c="${k}">${v}</span>`).join("")}</div>
     <label>購入URL</label>
     <input id="f-url" value="${esc(it.url||"")}" placeholder="https://…">
-    <label>NFCタグID <span class="muted">（空でも可）</span></label>
+    ${item ? `<label>タグ用URL <span class="muted">（これをNFCタグに書き込む）</span></label>
+    <div style="display:flex; gap:8px">
+      <input id="f-tagurl" readonly value="${esc(location.origin)}/t/${esc(item.id)}"
+             style="flex:1; font-family:ui-monospace,Consolas,monospace; font-size:12px">
+      <button id="f-copy" style="flex:0 0 auto">コピー</button>
+    </div>` : ""}
+    <label>NFCタグID <span class="muted">（番号で運用する場合。空でも可）</span></label>
     <input id="f-tag" value="${esc(it.tag||"")}" placeholder="例: 07">
     <label>メモ</label>
     <input id="f-note" value="${esc(it.note||"")}">
@@ -869,6 +877,22 @@ function openItemSheet(item, defaultGenre, presetTag, defaultArea){
   </div></div>`);
 
   sheet.querySelectorAll("#f-ch .chip").forEach(c => c.onclick = () => c.classList.toggle("on"));
+
+  // タグ用URL。品目IDで叩けるので、貼ったあとに名前を変えてもタグは死なない
+  const copyBtn = sheet.querySelector("#f-copy");
+  if(copyBtn) copyBtn.onclick = async () => {
+    const url = sheet.querySelector("#f-tagurl").value;
+    try{
+      await navigator.clipboard.writeText(url);
+      copyBtn.textContent = "コピーした";
+    }catch(e){
+      // クリップボードが使えない場合は選択状態にして手でコピーしてもらう
+      const el = sheet.querySelector("#f-tagurl");
+      el.removeAttribute("readonly"); el.select(); el.setSelectionRange(0, 999);
+      copyBtn.textContent = "手でコピーを";
+    }
+    setTimeout(() => { copyBtn.textContent = "コピー"; }, 2000);
+  };
   sheet.querySelector("#cancel").onclick = closeSheet;
 
   // 買った記録。押すと購入日が積まれて「ある」に戻る。履歴はここに全部出す

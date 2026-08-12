@@ -106,7 +106,19 @@ def find_item(state: dict, item_id: str):
 
 
 def find_by_tag(state: dict, tag: str):
+    """タグ文字列だけで引く。タグの重複判定はこちらを使う（IDは混ぜない）。"""
     return next((i for i in state["items"] if i.get("tag") == tag), None)
+
+
+def resolve_tap_target(state: dict, key: str):
+    """かざされた先を引き当てる。タグ文字列 → 品目ID の順で見る。
+
+    品目IDでも叩けるのは、タグに書くURLを品目側から配れるようにするため
+    （品目編集シートに出るURLがこれ）。IDは作られた時から変わらないので、
+    名前を変えても貼ってあるタグは生き続ける——名前からURLを導くと
+    改名した瞬間に全部のタグが死ぬ。
+    """
+    return find_by_tag(state, key) or find_item(state, key)
 
 
 # 買い物カゴに入れる前に貼るURLは、短縮リンクか、追跡パラメータで膨れた長いURLになる。
@@ -462,10 +474,9 @@ def api_item_delete(item_id):
 
 @app.get("/api/tags/<tag>")
 def api_tag_get(tag):
-    """タグの引き当てだけ（副作用なし）。紐付け画面が使う。"""
+    """引き当てだけ（副作用なし）。紐付け画面が使う。"""
     state = load_state()
-    item = find_by_tag(state, tag)
-    return jsonify({"tag": tag, "item": item})
+    return jsonify({"tag": tag, "item": resolve_tap_target(state, tag)})
 
 
 @app.post("/api/tags/<tag>/bind")
@@ -495,7 +506,7 @@ def api_tag_tap(tag):
     """
     with _lock:
         state = load_state()
-        item = find_by_tag(state, tag)
+        item = resolve_tap_target(state, tag)
         if item is None:
             return jsonify({"tag": tag, "item": None, "bound": False}), 404
         result = set_status(item, "want", "nfc")

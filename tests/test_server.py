@@ -105,6 +105,32 @@ class StockServerTest(unittest.TestCase):
         # 別品目への tag 付け替えも弾く
         self.assertEqual(self.c.post(f"/api/items/{b['id']}", json={"tag": "07"}).status_code, 409)
 
+    def test_tap_by_item_id(self):
+        """品目IDでも叩ける。タグに書くURLを品目側から配れるようにするため。"""
+        g = self.add_genre()
+        item = self.add_item(g["id"])
+        got = self.c.post(f"/api/tags/{item['id']}/tap").get_json()
+        self.assertTrue(got["bound"])
+        self.assertEqual(got["item"]["id"], item["id"])
+        self.assertEqual(got["item"]["status"], "want")
+
+    def test_rename_does_not_break_the_id_url(self):
+        """名前を変えても貼ったタグは生きている（URLの元がIDなので）。"""
+        g = self.add_genre()
+        item = self.add_item(g["id"], name="トイレットペーパー")
+        self.c.post(f"/api/items/{item['id']}", json={"name": "トイレットペーパー（12ロール）"})
+        got = self.c.post(f"/api/tags/{item['id']}/tap").get_json()
+        self.assertEqual(got["item"]["name"], "トイレットペーパー（12ロール）")
+        self.assertTrue(got["bound"])
+
+    def test_tag_uniqueness_ignores_ids(self):
+        """タグの重複判定はタグ文字列だけを見る（IDと混ざらない）。"""
+        g = self.add_genre()
+        a = self.add_item(g["id"], name="A")
+        b = self.add_item(g["id"], name="B")
+        r = self.c.post(f"/api/items/{b['id']}", json={"tag": a["id"]})
+        self.assertEqual(r.status_code, 200)
+
     def test_bind_then_tap(self):
         g = self.add_genre()
         item = self.add_item(g["id"])
