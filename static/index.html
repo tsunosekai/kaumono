@@ -229,6 +229,29 @@ document.getElementById("theme").onclick = () => {
   applyTheme(theme);
 };
 
+/* クリップボードへ写す。http:// の生IPで開くと navigator.clipboard は存在しない
+   （安全なコンテキストではないため）ので、その場合は execCommand へ落とす */
+async function copyText(text){
+  try{
+    if(window.isSecureContext && navigator.clipboard){
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  }catch(e){ /* 落ちたら下の経路へ */ }
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed; top:0; left:0; opacity:0; pointer-events:none";
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }catch(e){ return false; }
+}
+
 const $ = (h) => { const d=document.createElement("div"); d.innerHTML=h.trim(); return d.firstElementChild; };
 const esc = (s) => (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
 const app = document.getElementById("app");
@@ -443,8 +466,7 @@ function groupBar(label, rows){
     const copy = $(`<button style="width:100%;margin-top:10px">URLをまとめてコピー（${blocked.length}件）</button>`);
     copy.onclick = async () => {
       const text = blocked.map(i => `${i.name}\t${i.url}`).join("\n");
-      try{ await navigator.clipboard.writeText(text); copy.textContent = "コピーしました"; }
-      catch(e){ copy.textContent = "コピーできませんでした"; }
+      copy.textContent = await copyText(text) ? "コピーしました" : "コピーできませんでした";
     };
     box.appendChild(copy);
 
@@ -870,8 +892,9 @@ function openItemSheet(item, defaultGenre, presetTag, defaultArea){
              style="flex:1; font-family:ui-monospace,Consolas,monospace; font-size:12px">
       <button id="f-copy" style="flex:0 0 auto">コピー</button>
     </div>` : ""}
-    <label>NFCタグID <span class="muted">（番号で運用する場合。空でも可）</span></label>
-    <input id="f-tag" value="${esc(it.tag||"")}" placeholder="例: 07">
+    ${it.tag ? `<label>NFCタグ番号 <span class="muted">（番号で紐付けたタグ。空にすると外れる）</span></label>
+    <input id="f-tag" value="${esc(it.tag)}">`
+    : `<input id="f-tag" type="hidden" value="">`}
     <label>メモ</label>
     <input id="f-note" value="${esc(it.note||"")}">
     ${item?`<div id="f-bought"></div>`:""}
@@ -887,17 +910,15 @@ function openItemSheet(item, defaultGenre, presetTag, defaultArea){
   // タグ用URL。品目IDで叩けるので、貼ったあとに名前を変えてもタグは死なない
   const copyBtn = sheet.querySelector("#f-copy");
   if(copyBtn) copyBtn.onclick = async () => {
-    const url = sheet.querySelector("#f-tagurl").value;
-    try{
-      await navigator.clipboard.writeText(url);
+    const el = sheet.querySelector("#f-tagurl");
+    if(await copyText(el.value)){
       copyBtn.textContent = "コピーした";
-    }catch(e){
-      // クリップボードが使えない場合は選択状態にして手でコピーしてもらう
-      const el = sheet.querySelector("#f-tagurl");
-      el.removeAttribute("readonly"); el.select(); el.setSelectionRange(0, 999);
-      copyBtn.textContent = "手でコピーを";
+    }else{
+      // どちらの経路も塞がれていたら、選択状態にして長押しでコピーしてもらう
+      el.focus(); el.select(); el.setSelectionRange(0, el.value.length);
+      copyBtn.textContent = "長押しでコピー";
     }
-    setTimeout(() => { copyBtn.textContent = "コピー"; }, 2000);
+    setTimeout(() => { copyBtn.textContent = "コピー"; }, 2500);
   };
   sheet.querySelector("#cancel").onclick = closeSheet;
 
