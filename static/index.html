@@ -529,6 +529,12 @@ function channelTabs(onPick){
   const tabs = [["all","すべて"], ...Object.entries(CH)]
     .map(([k,v]) => [k, v, need.filter(i=>inChannel(i,k)).length])
     .filter(([k,,n]) => k === "all" || n > 0);
+  // 件数0の買い方はタブ自体を出さないので、そこが選ばれたままだと
+  // 「どれも選ばれていないのに中身が空」になる。見えない絞り込みは解除する
+  if(!tabs.some(([k]) => k === homeTab)){
+    homeTab = "all";
+    localStorage.setItem("stock-tab", homeTab);
+  }
   const el = $(`<div class="tabs">${tabs.map(([k,v,n]) =>
     `<button class="tab ${homeTab===k?"on":""}" data-c="${k}">${v}<span class="n">${n}</span></button>`).join("")}</div>`);
   el.querySelectorAll(".tab").forEach(b => b.onclick = () => {
