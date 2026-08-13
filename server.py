@@ -89,6 +89,9 @@ def load_state() -> dict:
         # 購入日は list（bought、新しい順）が正。単発の last_bought しか無い旧データは寄せる
         if "bought" not in item:
             item["bought"] = [item["last_bought"]] if item.get("last_bought") else []
+        # OGPカードは「作る側」が既定。作らないと決めたものだけ False を立てる
+        # （数の少ない例外を選ぶほうが、全品目に印を付けるより手が要らない）
+        item.setdefault("card", True)
     return state
 
 
@@ -345,6 +348,8 @@ def apply_item_fields(item: dict, body: dict) -> None:
         item["url"] = normalize_url(item["url"])
     if "channels" in body:
         item["channels"] = normalize_channels(body["channels"])
+    if "card" in body:
+        item["card"] = bool(body["card"])
     if "tag" in body:
         tag = (body.get("tag") or "").strip()
         item["tag"] = tag or None
@@ -372,6 +377,7 @@ def api_item_add():
             "product": (body.get("product") or "").strip(),
             "url": normalize_url(body.get("url") or ""),
             "channels": normalize_channels(body.get("channels")),
+            "card": bool(body.get("card", True)),
             "status": body.get("status") if body.get("status") in STATUSES else "ok",
             "tag": tag,
             "note": (body.get("note") or "").strip(),

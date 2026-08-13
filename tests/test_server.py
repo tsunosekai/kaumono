@@ -65,6 +65,26 @@ class StockServerTest(unittest.TestCase):
         self.assertEqual(item["channels"], ["net"])
         self.assertIsNone(item["tag"])
 
+    def test_card_defaults_true_and_survives_other_edits(self):
+        """OGPカードは既定で「ある」。作らないと決めたものだけ False を立てる。"""
+        g = self.add_genre()
+        item = self.add_item(g["id"])
+        self.assertTrue(item["card"])
+        self.c.post(f"/api/items/{item['id']}", json={"card": False})
+        self.assertFalse(self.state()["items"][0]["card"])
+        # 名前だけ直したときに、送っていない card が既定へ巻き戻らない
+        self.c.post(f"/api/items/{item['id']}", json={"name": "詰め替え"})
+        self.assertFalse(self.state()["items"][0]["card"])
+
+    def test_card_absent_in_old_data_reads_as_true(self):
+        """card を持たない旧データは「ある」として読む（全品目に印を付けずに移行する）。"""
+        g = self.add_genre()
+        self.add_item(g["id"])
+        raw = self.state()
+        del raw["items"][0]["card"]
+        server.STOCK_FILE.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+        self.assertTrue(self.c.get("/api/state").get_json()["items"][0]["card"])
+
     def test_item_requires_known_genre(self):
         r = self.c.post("/api/items", json={"genre": "nope", "name": "x"})
         self.assertEqual(r.status_code, 400)

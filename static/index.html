@@ -168,6 +168,9 @@ a.card:hover{border-color:var(--border-hover);}
   border-radius:5px; padding:1px 5px;
   font-family:ui-monospace,"SF Mono",Consolas,monospace;
 }
+/* OGPカードを作った（作る）品目の印。名前の直後に小さく置く。
+   印が付かない = カードを作らないと決めたもの */
+.cardmark{font-size:12px; color:var(--text-lo); margin-left:1px;}
 .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
 .chip{font-size:12px; padding:6px 11px; border:1px solid var(--border); border-radius:999px;
   color:var(--muted-foreground); cursor:pointer; background:var(--card); user-select:none;}
@@ -516,7 +519,7 @@ function itemRow(item, subFields, sortable){
   const row = $(`<div class="row s-${item.status}" ${sortable?`data-sid="${item.id}"`:""}>
     ${sortable?`<span class="grip" title="ドラッグで並べ替え">⠿</span>`:""}
     <div class="info">
-      <div class="name">${esc(item.name)} ${item.tag?`<span class="tagpill">#${esc(item.tag)}</span>`:""}</div>
+      <div class="name">${esc(item.name)}${item.card===false?"":`<span class="cardmark" title="OGPカードあり">▤</span>`} ${item.tag?`<span class="tagpill">#${esc(item.tag)}</span>`:""}</div>
       ${sub?`<div class="sub">${esc(sub)}</div>`:""}
     </div>
   </div>`);
@@ -868,7 +871,7 @@ function openGroupSheet(kind){
 }
 
 function openItemSheet(item, defaultGenre, presetTag, defaultArea){
-  const it = item || {name:"", product:"", url:"", note:"", channels:[], status:"ok",
+  const it = item || {name:"", product:"", url:"", note:"", channels:[], status:"ok", card:true,
                       genre: defaultGenre || (S.genres[0]||{}).id,
                       area: defaultArea || (S.areas[0]||{}).id, tag: presetTag || ""};
   const sheet = $(`<div class="sheet"><div class="inner">
@@ -886,6 +889,11 @@ function openItemSheet(item, defaultGenre, presetTag, defaultArea){
       `<span class="chip ${(it.channels||[]).includes(k)?"on":""}" data-c="${k}">${v}</span>`).join("")}</div>
     <label>購入URL</label>
     <input id="f-url" value="${esc(it.url||"")}" placeholder="https://…">
+    <label>OGPカード <span class="muted">（一覧では名前の後に ▤ が付く）</span></label>
+    <div class="chips" id="f-card">
+      <span class="chip ${it.card===false?"":"on"}" data-v="1">ある</span>
+      <span class="chip ${it.card===false?"on":""}" data-v="0">ない</span>
+    </div>
     ${item ? `<label>タグ用URL <span class="muted">（これをNFCタグに書き込む）</span></label>
     <div style="display:flex; gap:8px">
       <input id="f-tagurl" readonly value="${esc(location.origin)}/t/${esc(item.id)}"
@@ -906,6 +914,10 @@ function openItemSheet(item, defaultGenre, presetTag, defaultArea){
   </div></div>`);
 
   sheet.querySelectorAll("#f-ch .chip").forEach(c => c.onclick = () => c.classList.toggle("on"));
+
+  // OGPカードは有無の2値なので、買い方（複数選べる）と違って片方だけが点く
+  const cardChips = [...sheet.querySelectorAll("#f-card .chip")];
+  cardChips.forEach(c => c.onclick = () => cardChips.forEach(x => x.classList.toggle("on", x === c)));
 
   // タグ用URL。品目IDで叩けるので、貼ったあとに名前を変えてもタグは死なない
   const copyBtn = sheet.querySelector("#f-copy");
@@ -977,6 +989,7 @@ function openItemSheet(item, defaultGenre, presetTag, defaultArea){
     tag: sheet.querySelector("#f-tag").value.trim(),
     note: sheet.querySelector("#f-note").value.trim(),
     channels: [...sheet.querySelectorAll("#f-ch .chip.on")].map(c=>c.dataset.c),
+    card: (sheet.querySelector("#f-card .chip.on")||{dataset:{}}).dataset.v !== "0",
   });
 
   async function doSave(){
